@@ -37,8 +37,8 @@ def ljungBox(ACF, n, maxLag):
 	Calculates the Ljung-Box test based on a given ACF list, the length of the
 	timeseries, and the maximum lag desired to be computed.
 
-	A high p-val indicates that at the given lag, the independent variable is
-	good at predicting the dependent variable. A low p-val is the opposite
+	A high Q indicates that at the given lag, the independent variable is
+	good at predicting the dependent variable. A low Q is the opposite
 	(little help in prediction).
 	"""
 	coeffs = [[i, val] for i,val in enumerate(ACF)]
