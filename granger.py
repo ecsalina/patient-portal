@@ -13,6 +13,10 @@ from statsmodels.regression.linear_model import OLS
 import statsmodels
 import _math
 
+"""
+Eric Salina
+"""
+
 ####################CONSTANTS###################
 MAX_LAG = 5
 
