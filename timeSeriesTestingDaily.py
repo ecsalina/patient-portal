@@ -1,6 +1,6 @@
 import math
 import datetime
-import numpy
+import numpy as np
 import scipy
 import pandas as pd
 from tabulate import tabulate
@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from statsmodels.tsa import stattools
 from statsmodels.tsa import ar_model
 from statsmodels.tsa import arima_model
+from statsmodels.stats import diagnostic
+import statsmodels
 import _math
 
 """
@@ -47,7 +49,7 @@ Granger Causality
 """
 
 ####################CONSTANTS###################
-MAX_LAGS = 120
+MAX_LAG = 30
 
 
 ####################LOAD DATA###################
@@ -74,9 +76,6 @@ encountersPerDay = pd.Series(data=encountersPerDay["count_encounter"], index=enc
 clicksPerDay = clicksPerDay.fillna(method="ffill")
 encountersPerDay = encountersPerDay.fillna(method="ffill")
 
-print(clicksPerDay)
-print(encountersPerDay)
-
 
 
 ####################PRE-ANALYSIS####################
@@ -92,12 +91,12 @@ print(encountersPerDay)
 
 #3. calculate partial autocorrelation function (PACF) w/ Ljung-Box test to see
 #which lags help predict current values.
-clicksPACF = stattools.pacf_ols(clicksPerDay, nlags=MAX_LAGS)
-encountersPACF = stattools.pacf_ols(encountersPerDay, nlags=MAX_LAGS)
+clicksPACF = stattools.pacf_ols(clicksPerDay, nlags=MAX_LAG)
+encountersPACF = stattools.pacf_ols(encountersPerDay, nlags=MAX_LAG)
 
 #Ljung-Box test
-clicksPACF_LJ = _math.ljungBox(clicksPACF, len(clicksPerDay), MAX_LAGS)
-encountersPACF_LJ = _math.ljungBox(encountersPACF, len(encountersPerDay), MAX_LAGS)
+clicksPACF_LJ = _math.ljungBox(clicksPACF, len(clicksPerDay), MAX_LAG)
+encountersPACF_LJ = _math.ljungBox(encountersPACF, len(encountersPerDay), MAX_LAG)
 print("clicks PACF Ljung-Box")
 print(tabulate(clicksPACF_LJ, headers=["lag", "R", "Q", "p-val"]))
 print("encounters PACF Ljung-Box")
@@ -112,8 +111,8 @@ def plotxy(title, x, y, LSRL=None):
 	fig.autofmt_xdate()
 	plt.show()
 
-plotxy("clicks", range(MAX_LAGS+1), clicksPACF)
-plotxy("encounters", range(MAX_LAGS+1), encountersPACF)
+plotxy("clicks", range(MAX_LAG+1), clicksPACF)
+plotxy("encounters", range(MAX_LAG+1), encountersPACF)
 
 
 #4. calculate cross-correlation functions
@@ -127,12 +126,12 @@ Note: first var is dependent, second is independent, which is unclear from
 documentation
 """
 
-clicksCCF = _math.cc_ols(clicksPerDay, encountersPerDay, MAX_LAGS)
-encountersCCF = _math.cc_ols(encountersPerDay, clicksPerDay, MAX_LAGS)
+clicksCCF = _math.cc_ols(clicksPerDay, encountersPerDay, MAX_LAG)
+encountersCCF = _math.cc_ols(encountersPerDay, clicksPerDay, MAX_LAG)
 
 #Ljung-Box test
-clicksCCF_LJ = _math.ljungBox(clicksCCF, len(clicksPerDay), MAX_LAGS)
-encountersCCF_LJ = _math.ljungBox(encountersCCF, len(encountersPerDay), MAX_LAGS)
+clicksCCF_LJ = _math.ljungBox(clicksCCF, len(clicksPerDay), MAX_LAG)
+encountersCCF_LJ = _math.ljungBox(encountersCCF, len(encountersPerDay), MAX_LAG)
 print("clicks CCF Ljung-Box")
 print(tabulate(clicksCCF_LJ, headers=["lag", "R", "Q", "p-val"]))
 print("encounters CCF Ljung-Box")
@@ -145,15 +144,15 @@ print(tabulate(encountersCCF_LJ, headers=["lag", "R", "Q", "p-val"]))
 
 ####################ANALYSIS####################
 #1. select appriopriate number of lags
-ARaic = ar_model.AR(clicksPerDay.tolist()).fit(maxlag=MAX_LAGS, ic="aic")
-ARbic = ar_model.AR(clicksPerDay.tolist()).fit(maxlag=MAX_LAGS, ic="bic")
+ARaic = ar_model.AR(clicksPerDay.tolist()).fit(maxlag=MAX_LAG, ic="aic")
+ARbic = ar_model.AR(clicksPerDay.tolist()).fit(maxlag=MAX_LAG, ic="bic")
 #select the fewer number of parameters between both criteria.
 numLagsclick = len(ARaic.params) if len(ARaic.params) < len(ARbic.params) else len(ARbic.params)
 
 print("Optimal number of lags for click data is "+str(numLagsclick))
 
-ARaic = ar_model.AR(encountersPerDay.tolist()).fit(maxlag=MAX_LAGS, ic="aic")
-ARbic = ar_model.AR(encountersPerDay.tolist()).fit(maxlag=MAX_LAGS, ic="bic")
+ARaic = ar_model.AR(encountersPerDay.tolist()).fit(maxlag=MAX_LAG, ic="aic")
+ARbic = ar_model.AR(encountersPerDay.tolist()).fit(maxlag=MAX_LAG, ic="bic")
 #select the fewer number of parameters between both criteria.
 numLagsEnc = len(ARaic.params) if len(ARaic.params) < len(ARbic.params) else len(ARbic.params)
 

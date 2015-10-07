@@ -1,6 +1,9 @@
 import scipy
-import numpy
+import numpy as np
 import pandas
+from statsmodels.tsa.stattools import acf, adfuller
+
+
 
 def cc_ols(tsY, tsX, maxLag):
 	"""
@@ -53,3 +56,14 @@ def ljungBox(ACF, n, maxLag):
 		coeffs[lag].append(pval)
 
 	return coeffs
+
+def ljungBox2(x, maxlag):
+	lags = np.asarray(range(1, maxlag+1))
+	x = x.tolist()
+	n = len(x)
+	acfx = acf(x, nlags=maxlag) # normalize by nobs not (nobs-nlags)
+	acf2norm = acfx[1:maxlag+1]**2 / (n - np.arange(1,maxlag+1))
+
+	qljungbox = n * (n+2) * np.cumsum(acf2norm)[lags-1]
+	pval = scipy.stats.chi2.sf(qljungbox, lags)
+	return qljungbox, pval
