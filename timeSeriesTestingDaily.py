@@ -9,6 +9,7 @@ from statsmodels.tsa import stattools
 from statsmodels.tsa import ar_model
 from statsmodels.tsa import arima_model
 from statsmodels.stats import diagnostic
+from statsmodels.regression.linear_model import OLS
 import statsmodels
 import _math
 
@@ -67,14 +68,34 @@ newIndex = pd.Index(data=[dt.strftime("%m/%d/%y") for dt in newIndex])
 clicksPerDay = clicksPerDay.set_index(newIndex)
 encountersPerDay = encountersPerDay.set_index(newIndex)
 
-#clicksPerDay.index.name = None
-#encountersPerDay.index.name = None
-
 clicksPerDay = pd.Series(data=clicksPerDay["count_clicks"], index=clicksPerDay.index)
 encountersPerDay = pd.Series(data=encountersPerDay["count_encounter"], index=encountersPerDay.index)
 
 clicksPerDay = clicksPerDay.fillna(method="ffill")
 encountersPerDay = encountersPerDay.fillna(method="ffill")
+
+#clicksPerDay = clicksPerDay.diff()[1:]
+#encountersPerDay = encountersPerDay.diff()[1:]
+
+
+listClicks = [clicksPerDay[i:i+7] for i in range(0, len(clicksPerDay), 7)]
+clicksPerWeekVals = []
+
+for clicks in listClicks:
+	val = clicks.sum()
+	clicksPerWeekVals.append(val)
+
+listEncs = [encountersPerDay[i:i+7] for i in range(0, len(encountersPerDay), 7)]
+encsPerWeekVals = []
+
+for enc in listEncs:
+	val = enc.sum()
+	encsPerWeekVals.append(val)
+
+
+##TODO: CHANGE TO NEW FILE AND CHANGE NAMES TO 'WEEK,' NOT 'DAY.'
+clicksPerDay = pd.Series(clicksPerWeekVals)
+encountersPerDay = pd.Series(encsPerWeekVals)
 
 
 
@@ -125,6 +146,8 @@ clicksCCF = stattools.ccf(clicksPerDay, encountersPerMont)
 Note: first var is dependent, second is independent, which is unclear from 
 documentation
 """
+print len(encountersPerDay)
+print len(clicksPerDay)
 
 clicksCCF = _math.cc_ols(clicksPerDay, encountersPerDay, MAX_LAG)
 encountersCCF = _math.cc_ols(encountersPerDay, clicksPerDay, MAX_LAG)
@@ -172,3 +195,29 @@ results = stattools.grangercausalitytests(data, maxlag=numLagsclick)
 #ideally, I would implement this myself, however statsmodels is buggy and
 #does not deal with exogenous variables well, meaning I would have to
 #implement an AR fitting algorithm, which is non-ideal.
+
+
+
+MAX_LAG = 3
+
+endog = encountersPerDay.tolist()
+exog = clicksPerDay.tolist()
+
+endogLags = []
+exogLags = []
+
+for lag in range(0, MAX_LAG+1):
+	end = -(MAX_LAG-lag) if -(MAX_LAG-lag) != 0 else len(endog)
+	laggedEndog = endog[lag:end]
+	endogLags.append(laggedEndog)
+	laggedExog = exog[lag:end]
+	exogLags.append(laggedExog)
+
+endogLags.reverse()
+exogLags.reverse()
+
+endog = endogLags.pop(0)
+exog = exogLags.pop(0)
+
+results = OLS(endog, exog=exog).fit()
+print results.params
